@@ -1,0 +1,258 @@
+import React, { useState, useEffect } from "react";
+
+// EnfrokEI — Mini OS (Single-file React preview)
+// Tailwind-ready markup (no imports needed for Tailwind in this preview environment)
+// Features: Top bar with Lock (🔒), Dock with rounded icons, Windows for Calculator, Derter (Browser), Notepad, and The Enfrokian Intelligence (AI)
+
+export default function EnfrokMiniOS() {
+  const [openApp, setOpenApp] = useState(null);
+  const [locked, setLocked] = useState(false);
+  const [notes, setNotes] = useState(localStorage.getItem("enfrok_notes") || "");
+  const [aiHistory, setAiHistory] = useState([]);
+
+  useEffect(() => {
+    localStorage.setItem("enfrok_notes", notes);
+  }, [notes]);
+
+  function toggleLock() {
+    setLocked(!locked);
+    setOpenApp(null);
+  }
+
+  return (
+    <div className="min-h-screen bg-[#0b0f13] text-slate-200 font-sans">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+        <div className="flex items-center gap-3">
+          <div className="text-xl font-semibold">EnfrokEI</div>
+          <div className="text-sm text-slate-400">Nature Mini</div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="text-sm text-slate-400">Guest</div>
+          <button
+            onClick={toggleLock}
+            title="Lock"
+            className="px-3 py-1 rounded-2xl bg-slate-800 hover:bg-slate-700 transition"
+          >
+            🔒
+          </button>
+        </div>
+      </div>
+
+      {/* Desktop area */}
+      <div className="p-6">
+        <div className="grid grid-cols-4 gap-4">
+          {/* Quick app tiles */}
+          <AppTile label="Calculator" onOpen={() => setOpenApp('calculator')} />
+          <AppTile label="Derter (Browser)" onOpen={() => setOpenApp('browser')} />
+          <AppTile label="Notebook" onOpen={() => setOpenApp('notepad')} />
+          <AppTile label="Enfrokian AI" onOpen={() => setOpenApp('ai')} />
+        </div>
+      </div>
+
+      {/* Dock */}
+      <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-black/50 backdrop-blur-md px-4 py-3 rounded-3xl shadow-lg flex gap-4 items-center">
+        <DockIcon emoji="🧮" label="Calc" onClick={() => setOpenApp('calculator')} />
+        <DockIcon emoji="🌐" label="Derter" onClick={() => setOpenApp('browser')} />
+        <DockIcon emoji="📝" label="Note" onClick={() => setOpenApp('notepad')} />
+        <DockIcon emoji="🤖" label="AI" onClick={() => setOpenApp('ai')} />
+      </div>
+
+      {/* App windows (simple modal-style) */}
+      {openApp === 'calculator' && !locked && (
+        <Window title="Calculator" onClose={() => setOpenApp(null)}>
+          <Calculator />
+        </Window>
+      )}
+
+      {openApp === 'browser' && !locked && (
+        <Window title="Derter — Browser (no iframes)" onClose={() => setOpenApp(null)}>
+          <DerterBrowser />
+        </Window>
+      )}
+
+      {openApp === 'notepad' && !locked && (
+        <Window title="Notebook" onClose={() => setOpenApp(null)}>
+          <textarea
+            className="w-full h-64 bg-[#071018] p-3 rounded text-slate-200 border border-slate-800"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          />
+        </Window>
+      )}
+
+      {openApp === 'ai' && !locked && (
+        <Window title="The Enfrokian Intelligence" onClose={() => setOpenApp(null)}>
+          <AIApp history={aiHistory} setHistory={setAiHistory} />
+        </Window>
+      )}
+
+      {locked && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center">
+          <div className="bg-[#071018] p-6 rounded-xl border border-slate-700 text-center">
+            <div className="mb-4 text-lg">Screen locked</div>
+            <button
+              onClick={() => setLocked(false)}
+              className="px-4 py-2 rounded bg-slate-700 hover:bg-slate-600"
+            >
+              Unlock
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AppTile({ label, onOpen }) {
+  return (
+    <button onClick={onOpen} className="bg-slate-900 p-4 rounded-2xl flex flex-col items-center gap-2 hover:scale-105 transition">
+      <div className="text-3xl">{label === 'Calculator' ? '🧮' : label === 'Derter (Browser)' ? '🌐' : label === 'Notebook' ? '📝' : '🤖'}</div>
+      <div className="text-sm text-slate-300">{label}</div>
+    </button>
+  );
+}
+
+function DockIcon({ emoji, label, onClick }) {
+  return (
+    <button onClick={onClick} className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl bg-slate-900/60 hover:scale-110 transition">
+      <span role="img" aria-label={label}>{emoji}</span>
+    </button>
+  );
+}
+
+function Window({ title, children, onClose }) {
+  return (
+    <div className="fixed top-16 left-1/2 transform -translate-x-1/2 w-[80%] max-w-3xl bg-[#06121a] border border-slate-800 rounded-2xl shadow-2xl p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="font-semibold">{title}</div>
+        <div className="flex gap-2">
+          <button onClick={onClose} className="px-3 py-1 rounded bg-slate-800">Close</button>
+        </div>
+      </div>
+      <div>{children}</div>
+    </div>
+  );
+}
+
+// Simple calculator (supports arithmetic expressions)
+function Calculator() {
+  const [expr, setExpr] = useState("");
+  const [result, setResult] = useState("");
+
+  function evaluate() {
+    try {
+      // very small, careful eval for arithmetic only: allow digits, operators, parentheses, decimal
+      if (!/^[0-9+\-*/(). %]+$/.test(expr)) {
+        setResult("Invalid characters");
+        return;
+      }
+      // eslint-disable-next-line no-new-func
+      const val = Function(`"use strict"; return (${expr})`)();
+      setResult(String(val));
+    } catch (e) {
+      setResult("Error");
+    }
+  }
+
+  return (
+    <div>
+      <input
+        value={expr}
+        onChange={(e) => setExpr(e.target.value)}
+        placeholder="Type expression, e.g. (12+5)/17"
+        className="w-full p-2 rounded bg-[#08121a] border border-slate-800"
+      />
+      <div className="flex gap-2 mt-3">
+        <button onClick={evaluate} className="px-3 py-1 rounded bg-slate-800">Evaluate</button>
+        <button onClick={() => { setExpr(''); setResult(''); }} className="px-3 py-1 rounded bg-slate-800">Clear</button>
+      </div>
+      <div className="mt-3">Result: <span className="font-mono">{result}</span></div>
+    </div>
+  );
+}
+
+// Derter Browser: strict — doesn't render iframes and warns if page contains iframe tags.
+function DerterBrowser() {
+  const [url, setUrl] = useState('');
+  const [html, setHtml] = useState('');
+  const [note, setNote] = useState('Type a full URL (https://...) and click Load. Derter fetches page text and strips <iframe> tags for safety.');
+
+  async function loadUrl() {
+    setHtml('Loading...');
+    setNote('Fetching...');
+    try {
+      // Attempt to fetch page HTML as text. Note: in production CORS will limit fetches — this preview assumes same-origin or CORS enabled pages.
+      const res = await fetch(url, { method: 'GET' });
+      const text = await res.text();
+      // Simple strip of iframe tags
+      const cleaned = text.replace(/<iframe[\s\S]*?<\/iframe>/gi, '[iframe removed by Derter]');
+      const hasIframe = /<iframe[\s\S]*?>/i.test(text);
+      setHtml(cleaned);
+      setNote(hasIframe ? 'Iframe tags detected and removed. Derter does not render iframes.' : 'Page loaded.');
+    } catch (e) {
+      setHtml('Could not fetch — CORS or network error in preview environment.');
+      setNote('Derter is a demo. In a real OS you would either use a native webview or proxy to fetch pages server-side to avoid CORS.');
+    }
+  }
+
+  return (
+    <div>
+      <div className="text-sm text-slate-400 mb-2">{note}</div>
+      <div className="flex gap-2 mb-3">
+        <input className="flex-1 p-2 rounded bg-[#08121a] border border-slate-800" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://example.com" />
+        <button onClick={loadUrl} className="px-3 py-1 rounded bg-slate-800">Load</button>
+      </div>
+      <div className="max-h-64 overflow-auto bg-[#031218] p-3 rounded border border-slate-800 text-sm whitespace-pre-wrap font-mono">{html}</div>
+    </div>
+  );
+}
+
+// Tiny mock AI app — local, rule-based assistant for demo (no external API calls)
+function AIApp({ history, setHistory }) {
+  const [input, setInput] = useState('');
+
+  function send() {
+    if (!input.trim()) return;
+    const user = input.trim();
+    const reply = localAiReply(user);
+    const next = [...history, { from: 'user', text: user }, { from: 'ai', text: reply }];
+    setHistory(next);
+    setInput('');
+  }
+
+  return (
+    <div>
+      <div className="max-h-48 overflow-auto p-3 bg-[#041018] rounded border border-slate-800 mb-3">
+        {history.length === 0 && <div className="text-slate-400 text-sm">Ask the Enfrokian Intelligence anything (demo). It will respond locally without sending data anywhere.</div>}
+        {history.map((m, i) => (
+          <div key={i} className={`mb-2 ${m.from === 'ai' ? 'text-slate-300' : 'text-sky-200'}`}><strong>{m.from === 'ai' ? 'AI' : 'You'}: </strong>{m.text}</div>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <input value={input} onChange={e => setInput(e.target.value)} placeholder="Type a question" className="flex-1 p-2 rounded bg-[#08121a] border border-slate-800" />
+        <button onClick={send} className="px-3 py-1 rounded bg-slate-800">Send</button>
+      </div>
+    </div>
+  );
+}
+
+function localAiReply(text) {
+  const t = text.toLowerCase();
+  if (/hello|hi|hey/.test(t)) return 'Hello — I am the Enfrokian Intelligence. How can I help? (demo)';
+  if (/calculator|math|solve/.test(t)) return 'Ask me an arithmetic expression and I will evaluate it. Example: 12*3+5';
+  if (/note|remember/.test(t)) return 'Use the Notebook app — notes are saved locally in your browser (localStorage).';
+  if (/browser|iframe/.test(t)) return 'Derter is designed to strip and block iframe content for safety. In a production app a secure webview is used instead.';
+  if (/who are you/.test(t)) return 'I am a local demo assistant included with this EnfrokEI preview. I do not send or store your input on external servers.';
+  // small math evaluate attempt
+  if (/^[0-9+\-*/(). %]+$/.test(t)) {
+    try {
+      // eslint-disable-next-line no-new-func
+      const val = Function(`"use strict"; return (${t})`)();
+      return `Result: ${val}`;
+    } catch (e) {
+      return 'Could not evaluate expression.';
+    }
+  }
+  return "Sorry, this is a small demo AI. Try asking about 'calculator', 'notes', or type a simple expression.";
+}
